@@ -1,0 +1,13 @@
+<ModelInformation>
+  <Model>
+    <Block BlockType="Inport" Name="In1" SID="1">
+      <Port Port="1"/>
+    </Block>
+    <Block BlockType="Scope" Name="Scope1" SID="4">
+      <Port Port="1"/>
+    </Block>
+    <Block BlockType="Outport" Name="Out1" SID="3">
+      <Port Port="1"/>
+    </Block>
+  </Model>
+</ModelInformation>
