@@ -5,7 +5,7 @@ import { execSync } from "child_process";
 import { diff } from "deep-object-diff";
 
 const server = new Server(
-  { name: "rea-simdiff-engine", version: "1.0.0" },
+  { name: "rea-simdiff-engine", version: "2.0.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -13,23 +13,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "inspect_structure",
-      description: "Parses a model/binary file into a structured block diagram tree.",
+      description: "Parses a Python script and returns its functions, classes, and imports.",
       inputSchema: {
         type: "object",
         properties: {
-          filePath: { type: "string", description: "Path to .slx or XML file" }
+          filePath: { type: "string", description: "Path to a .py file" }
         },
         required: ["filePath"]
       }
     },
     {
-      name: "diff_models",
-      description: "Computes structural differences between two model files (adds, removals, property edits).",
+      name: "diff_scripts",
+      description: "Compares two Python scripts and reports added, removed, and modified functions/classes.",
       inputSchema: {
         type: "object",
         properties: {
-          fileA: { type: "string" },
-          fileB: { type: "string" }
+          fileA: { type: "string", description: "Path to first .py file" },
+          fileB: { type: "string", description: "Path to second .py file" }
         },
         required: ["fileA", "fileB"]
       }
@@ -45,23 +45,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return { content: [{ type: "text", text: output }] };
   }
 
-  if (name === "diff_models") {
-    const treeA_str = execSync(`python3 engine.py "${args.fileA}"`).toString();
-    const treeB_str = execSync(`python3 engine.py "${args.fileB}"`).toString();
-
-    const treeA = JSON.parse(treeA_str);
-    const treeB = JSON.parse(treeB_str);
-
-    const differences = diff(treeA, treeB);
-
-    const added = Object.keys(treeB).filter(k => !(k in treeA));
-    const removed = Object.keys(treeA).filter(k => !(k in treeB));
+  if (name === "diff_scripts") {
+    const treeA = JSON.parse(execSync(`python3 engine.py "${args.fileA}"`).toString());
+    const treeB = JSON.parse(execSync(`python3 engine.py "${args.fileB}"`).toString());
 
     const result = {
-      summary: {
-        added_blocks: added,
-        removed_blocks: removed,
-        modified_properties: differences
+      functions: {
+        added: Object.keys(treeB.functions).filter(k => !(k in treeA.functions)),
+        removed: Object.keys(treeA.functions).filter(k => !(k in treeB.functions)),
+        modified: diff(treeA.functions, treeB.functions)
+      },
+      classes: {
+        added: Object.keys(treeB.classes).filter(k => !(k in treeA.classes)),
+        removed: Object.keys(treeA.classes).filter(k => !(k in treeB.classes)),
+        modified: diff(treeA.classes, treeB.classes)
+      },
+      imports: {
+        added: treeB.imports.filter(i => !treeA.imports.some(j => j.module === i.module)),
+        removed: treeA.imports.filter(i => !treeB.imports.some(j => j.module === i.module))
       }
     };
 

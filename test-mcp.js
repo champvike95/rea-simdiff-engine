@@ -22,20 +22,20 @@ async function runTests() {
   toolsList.tools.forEach((t) => console.log(`  - ${t.name}: ${t.description}`));
   console.log("\n" + "─".repeat(50) + "\n");
 
-  console.log("🔍 Testing Tool: inspect_structure on test_models/modelA.slx ...");
+  console.log("🔍 Testing Tool: inspect_structure on test_scripts/v1.py ...");
   const inspectResult = await client.callTool({
     name: "inspect_structure",
-    arguments: { filePath: "test_models/modelA.slx" }
+    arguments: { filePath: "test_scripts/v1.py" }
   });
   console.log("Result:\n", inspectResult.content[0].text);
   console.log("─".repeat(50) + "\n");
 
-  console.log("⚡ Testing Tool: diff_models comparing modelA.slx and modelB.slx ...");
+  console.log("⚡ Testing Tool: diff_scripts comparing v1.py and v2.py ...");
   const diffResult = await client.callTool({
-    name: "diff_models",
+    name: "diff_scripts",
     arguments: {
-      fileA: "test_models/modelA.slx",
-      fileB: "test_models/modelB.slx"
+      fileA: "test_scripts/v1.py",
+      fileB: "test_scripts/v2.py"
     }
   });
   console.log("Result:\n", diffResult.content[0].text);

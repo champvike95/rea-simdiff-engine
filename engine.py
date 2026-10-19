@@ -1,34 +1,49 @@
 import sys
-import zipfile
-import xml.etree.ElementTree as ET
+import ast
 import json
 
 
-def parse_slx_structure(slx_path):
-    """Extract block hierarchy and connections from an SLX/XML file."""
-    try:
-        with zipfile.ZipFile(slx_path, 'r') as z:
-            xml_content = z.read('simulink/blockdiagram.xml')
-    except Exception:
-        with open(slx_path, 'rb') as f:
-            xml_content = f.read()
+def parse_py_structure(filepath):
+    with open(filepath, "r") as f:
+        source = f.read()
 
-    root = ET.fromstring(xml_content)
-    blocks = {}
+    tree = ast.parse(source)
 
-    for block in root.iter('Block'):
-        block_name = block.attrib.get('Name', 'Unknown')
-        block_type = block.attrib.get('BlockType', 'Generic')
-        sid = block.attrib.get('SID', '')
-        ports = [p.attrib for p in block.findall('Port')]
+    functions = []
+    classes = []
+    imports = []
 
-        blocks[block_name] = {
-            "type": block_type,
-            "sid": sid,
-            "ports": ports
-        }
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+            functions.append({
+                "name": node.name,
+                "line": node.lineno,
+                "args": [a.arg for a in node.args.args],
+                "decorators": [ast.unparse(d) for d in node.decorator_list]
+            })
+        elif isinstance(node, ast.ClassDef):
+            methods = [n.name for n in ast.walk(node) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+            classes.append({
+                "name": node.name,
+                "line": node.lineno,
+                "bases": [ast.unparse(b) for b in node.bases],
+                "methods": methods
+            })
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append({"module": alias.name, "alias": alias.asname})
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                imports.append({
+                    "module": f"{node.module}.{alias.name}",
+                    "alias": alias.asname
+                })
 
-    return blocks
+    return {
+        "functions": {f["name"]: f for f in functions},
+        "classes": {c["name"]: c for c in classes},
+        "imports": imports
+    }
 
 
 if __name__ == "__main__":
@@ -37,5 +52,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     filepath = sys.argv[1]
-    result = parse_slx_structure(filepath)
+    result = parse_py_structure(filepath)
     print(json.dumps(result, indent=2))
